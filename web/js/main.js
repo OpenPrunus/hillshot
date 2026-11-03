@@ -111,6 +111,7 @@ function controlledSide() {
 }
 
 function adjust(side, key, delta) {
+  if (document.activeElement instanceof HTMLInputElement && document.activeElement.classList.contains('val')) document.activeElement.blur();
   const s = app.shots[side];
   s[key] = Math.max(0, Math.min(LIMITS[key], s[key] + delta));
   renderHud();
@@ -120,8 +121,11 @@ function renderHud() {
   const active = controlledSide();
   for (const side of [LEFT, RIGHT]) {
     const s = app.shots[side];
-    $(`#v-angle-${side}`).textContent = String(s.angle);
-    $(`#v-powder-${side}`).textContent = `${s.powder}`;
+    for (const key of ['angle', 'powder']) {
+      const field = $(`#v-${key}-${side}`);
+      if (document.activeElement !== field) field.value = String(s[key]);          // pas pendant la saisie
+      field.readOnly = active !== side;
+    }
     drawCannonThumb($(`#t-angle-${side}`), s.angle, side);
     drawPowderThumb($(`#t-powder-${side}`), s.powder);
     const hidden = app.mode === 'online' && side !== app.mySide && app.phase === 'aim';
@@ -149,6 +153,28 @@ function turnText() {
   if (app.phase === 'fly' || app.phase === 'wait') return app.phase === 'fly' ? t('flying') : '';
   if (app.mode === 'online') return app.turn === app.mySide ? t('yourTurn', { s: Math.max(0, app.left) }) : t('turnOf', { name: nameOf(app.turn) });
   return isYou(app.turn) ? t('yourTurnPlain') : t('turnOf', { name: nameOf(app.turn) });
+}
+
+/** Champs de saisie : on tape la valeur ; elle est bornée (0-90°, 0-400 g) et appliquée tout de suite. Entrée valide, Échap annule la saisie. */
+function setupFields() {
+  for (const field of $$('.val')) {
+    const [, key, sideText] = field.id.split('-');
+    const side = Number(sideText);
+    field.addEventListener('focus', () => { audio.unlock(); if (!field.readOnly) field.select(); });
+    field.addEventListener('input', () => {
+      if (field.readOnly) return;
+      const digits = field.value.replace(/\D/g, '').slice(0, 3);
+      if (digits !== field.value) field.value = digits;
+      if (digits === '') return;
+      app.shots[side][key] = Math.min(LIMITS[key], Number(digits));
+      const s = app.shots[side];
+      drawCannonThumb($(`#t-angle-${side}`), s.angle, side);
+      drawPowderThumb($(`#t-powder-${side}`), s.powder);
+    });
+    const commit = () => { field.value = String(app.shots[side][key]); renderHud(); };
+    field.addEventListener('change', commit);
+    field.addEventListener('blur', commit);
+  }
 }
 
 function setupSteppers() {
@@ -185,9 +211,16 @@ function setupSteppers() {
 
 const normKey = (e) => (e.key.length === 1 ? e.key.toLowerCase() : e.key);
 window.addEventListener('keydown', (e) => {
-  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+  const inField = e.target instanceof HTMLInputElement && e.target.classList.contains('val');
+  if ((e.target instanceof HTMLInputElement && !inField) || e.target instanceof HTMLSelectElement) return;
   audio.unlock();
   const k = normKey(e);
+  if (inField && (k === 'Enter' || k === 'Escape')) {              // fin de saisie ; Espace ou Entrée tirent ensuite
+    e.preventDefault();
+    e.target.blur();
+    return;
+  }
+  if (inField && !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k)) return;      // chiffres, effacement, tabulation
   if (k === 'Escape' && app.mode !== null) {
     e.preventDefault();
     if (panels.quit.hidden) askQuit(); else showPanel('');
@@ -795,6 +828,7 @@ window.addEventListener('resize', fit);
 // ---------------------------------------------------------------- démarrage
 i18n.setLang(i18n.detectLang());
 setupSteppers();
+setupFields();
 refreshLabels();
 fit();
 showPanel('menu');

@@ -151,12 +151,12 @@ $ws = (string) getenv('HILLSHOT_WS');
     <div id="panel">
       <div class="col" data-p="0">
         <div class="lbl" data-i18n="angle"></div>
-        <div class="spin"><button class="step" data-k="angle" data-d="1" aria-label="+">&#9650;</button><output id="v-angle-0">45</output><button class="step" data-k="angle" data-d="-1" aria-label="-">&#9660;</button></div>
+        <div class="spin"><button class="step" data-k="angle" data-d="1" aria-label="+">&#9650;</button><input class="val" id="v-angle-0" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" spellcheck="false" value="45" data-i18n-aria="angle"><button class="step" data-k="angle" data-d="-1" aria-label="-">&#9660;</button></div>
         <canvas class="thumb" id="t-angle-0" width="46" height="46"></canvas>
       </div>
       <div class="col" data-p="0">
         <div class="lbl" data-i18n="powder"></div>
-        <div class="spin"><button class="step" data-k="powder" data-d="1" aria-label="+">&#9650;</button><output id="v-powder-0">150</output><button class="step" data-k="powder" data-d="-1" aria-label="-">&#9660;</button></div>
+        <div class="spin"><button class="step" data-k="powder" data-d="1" aria-label="+">&#9650;</button><input class="val" id="v-powder-0" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" spellcheck="false" value="150" data-i18n-aria="powder"><button class="step" data-k="powder" data-d="-1" aria-label="-">&#9660;</button></div>
         <canvas class="thumb" id="t-powder-0" width="46" height="46"></canvas>
       </div>
       <div id="center">
@@ -168,12 +168,12 @@ $ws = (string) getenv('HILLSHOT_WS');
       </div>
       <div class="col" data-p="1">
         <div class="lbl" data-i18n="powder"></div>
-        <div class="spin"><button class="step" data-k="powder" data-d="1" aria-label="+">&#9650;</button><output id="v-powder-1">150</output><button class="step" data-k="powder" data-d="-1" aria-label="-">&#9660;</button></div>
+        <div class="spin"><button class="step" data-k="powder" data-d="1" aria-label="+">&#9650;</button><input class="val" id="v-powder-1" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" spellcheck="false" value="150" data-i18n-aria="powder"><button class="step" data-k="powder" data-d="-1" aria-label="-">&#9660;</button></div>
         <canvas class="thumb" id="t-powder-1" width="46" height="46"></canvas>
       </div>
       <div class="col" data-p="1">
         <div class="lbl" data-i18n="angle"></div>
-        <div class="spin"><button class="step" data-k="angle" data-d="1" aria-label="+">&#9650;</button><output id="v-angle-1">45</output><button class="step" data-k="angle" data-d="-1" aria-label="-">&#9660;</button></div>
+        <div class="spin"><button class="step" data-k="angle" data-d="1" aria-label="+">&#9650;</button><input class="val" id="v-angle-1" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" spellcheck="false" value="45" data-i18n-aria="angle"><button class="step" data-k="angle" data-d="-1" aria-label="-">&#9660;</button></div>
         <canvas class="thumb" id="t-angle-1" width="46" height="46"></canvas>
       </div>
     </div>

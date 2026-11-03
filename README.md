@@ -8,8 +8,10 @@ challenges, Elo leaderboard). French and English, keyboard, mouse and touch.
 
 ## Features
 
-- **Against the computer** in three levels. It solves the ballistics with the game's own engine, misjudges the wind and adds an
-  error margin according to the level, then refines its powder charge by bisection from the miss of its previous shots.
+- **Against the computer** in three levels. Like a player, it does not know the wind exactly nor where its first shell will land:
+  it solves the ballistics with the game's own engine on an estimate of the wind, aims with a distance error that depends on the
+  level (about 7 % / 14 % / 29 % of first shots hit on easy / normal / hard), then measures where each shell fell, corrects its bias
+  and tightens its aim shot after shot.
 - **Two players on one screen**, taking turns on the same board.
 - **Online multiplayer**: a central PHP 8.5 server draws each round (hill, castles, wind), receives the setting of the player whose
   turn it is, computes the flight with the same engine as the browser and broadcasts it. Turn timer (an expired turn fires the
@@ -36,8 +38,8 @@ the configuration variables and a reverse-proxy example.
 
 | | |
 | --- | --- |
-| Angle | ↑ ↓ or **W S**, mouse wheel or the arrows on the counter (hold to repeat) |
-| Powder | → ← or **D A**, mouse wheel or the arrows on the counter (**Shift**: steps of 5 and 10) |
+| Angle | ↑ ↓ or **W S**, mouse wheel, the arrows on the counter (hold to repeat), or click the counter and **type the value** |
+| Powder | → ← or **D A**, mouse wheel, the arrows or typing in the counter (**Shift**: steps of 5 and 10) |
 | Fire | **Space** or **Enter**, or the *Fire* button |
 
 On a phone the counters are touch buttons. The menu bar (File, Options, Help) offers new games, the player names, the

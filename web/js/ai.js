@@ -1,13 +1,19 @@
-// Hillshot — l'ordinateur. Il résout la balistique approximativement (même moteur, vent mal estimé selon le niveau),
-// ajoute une marge d'erreur aléatoire, puis affine sa charge de poudre par dichotomie d'après l'écart de ses tirs précédents.
+// Hillshot — l'ordinateur. Comme un joueur, il ne connaît pas exactement le vent et ne sait pas à l'avance où tombera son premier
+// obus : il résout la balistique avec le moteur du jeu sur une estimation du vent, puis vise avec une erreur de distance
+// (aléatoire) propre à son niveau. Chaque tir lui apprend l'écart de son obus : il corrige alors son biais et resserre sa visée.
 // Le hasard vient d'un générateur à graine : une partie est rejouable.
 
 import { C, LEFT, fly } from './engine.js';
 
+/**
+ * aimError : écart-type (px) de l'erreur de visée du premier tir, divisé par deux à chaque tir manqué de la manche ;
+ * windError : erreur d'estimation du vent (en unités de vent, de -1 à 1), corrigée par le biais mesuré après un premier tir.
+ * Taux de réussite mesurés : premier tir ~7 % (facile), ~14 % (normal), ~29 % (difficile) ; au troisième tir ~20 % / ~47 % / ~79 %.
+ */
 export const LEVELS = Object.freeze({
-  easy: { windError: 0.6, powderError: 40, angleError: 6 },
-  normal: { windError: 0.3, powderError: 22, angleError: 4 },
-  hard: { windError: 0.15, powderError: 10, angleError: 2 },
+  easy: { aimError: 500, windError: 0.6 },
+  normal: { aimError: 220, windError: 0.3 },
+  hard: { aimError: 100, windError: 0.12 },
 });
 
 /** Générateur pseudo-aléatoire déterministe (mulberry32) renvoyant des réels dans [0, 1). */
@@ -22,7 +28,9 @@ export function seeded(seed) {
   };
 }
 
-/** Abscisse d'arrivée (signée : positive = au-delà de la cible, dans le sens du tir) d'un tir de cette poudre. */
+const gauss = (rand) => Math.sqrt(-2 * Math.log(1 - rand())) * Math.cos(2 * Math.PI * rand());
+
+/** Écart d'arrivée (signé : positif = au-delà de la cible, dans le sens du tir) d'un tir de cette poudre. */
 function overshoot(round, side, angle, powder, targetX) {
   const trajectory = fly(round, side, { angle, powder });
   const x = trajectory.path[trajectory.path.length - 1][0];
@@ -32,37 +40,36 @@ function overshoot(round, side, angle, powder, targetX) {
 export function createAI(side, level = 'normal', seed = 1) {
   const cfg = LEVELS[level] ?? LEVELS.normal;
   const rand = seeded(seed + side * 7919);
+  const dir = side === LEFT ? 1 : -1;
   const angles = [38, 42, 46, 50, 54, 58, 62, 66, 70, 74, 78];
   let roundKey = '';
   let angle = 50;
-  let perceived = null;
-  let lo = 0;
-  let hi = C.MAX_POWDER;
-  let last = null;
+  let perceived = null;       // la manche telle qu'il la comprend (vent estimé)
+  let bias = 0;               // erreur systématique mesurée sur ses tirs précédents (px, dans le sens du tir)
   let misses = 0;
+  let lastOffset = 0;         // écart voulu du dernier tir par rapport à la cible
 
   const key = (round) => `${round.baseY}/${round.hillH}/${round.hillX}/${round.castles}/${round.wind}`;
 
-  /** Dichotomie : la poudre minimale pour laquelle l'obus ne retombe pas avant la cible (avec l'erreur d'angle et de vent du niveau). */
-  function solve(round, a0, b0, ang) {
-    let a = a0;
-    let b = b0;
+  /** Dichotomie : la poudre pour laquelle l'obus retombe à `aimX` selon sa compréhension de la manche. */
+  function solve(ang, aimX) {
+    let a = 0;
+    let b = C.MAX_POWDER;
     for (let i = 0; i < 16; i++) {
       const mid = (a + b) / 2;
-      if (overshoot(round, side, ang, mid, round.castles[1 - side]) < 0) a = mid;
+      if (overshoot(perceived, side, ang, mid, aimX) < 0) a = mid;
       else b = mid;
     }
-    const powder = (a + b) / 2;
-    return { powder, error: Math.abs(overshoot(round, side, ang, powder, round.castles[1 - side])) };
+    return (a + b) / 2;
   }
 
   /** Parmi quelques angles (point de départ au hasard), le premier qui permet d'atteindre la cible, sinon le moins mauvais. */
-  function chooseAngle(round) {
+  function chooseAngle(targetX) {
     const offset = Math.floor(rand() * angles.length);
     let best = { angle: 50, error: Infinity };
     for (let i = 0; i < angles.length; i++) {
       const ang = angles[(offset + i) % angles.length];
-      const { error } = solve(perceived, 0, C.MAX_POWDER, ang);
+      const error = Math.abs(overshoot(perceived, side, ang, solve(ang, targetX), targetX));
       if (error < 14) return ang;
       if (error < best.error) best = { angle: ang, error };
     }
@@ -74,31 +81,26 @@ export function createAI(side, level = 'normal', seed = 1) {
     /** Choisit le tir de ce tour. */
     decide(duel) {
       const round = duel.round;
+      const targetX = round.castles[1 - side];
       if (key(round) !== roundKey) {
         roundKey = key(round);
-        perceived = { ...round, wind: round.wind * (1 + (rand() * 2 - 1) * cfg.windError) };
-        angle = chooseAngle(round);
-        lo = 0;
-        hi = C.MAX_POWDER;
-        last = null;
+        perceived = { ...round, wind: round.wind + (rand() * 2 - 1) * cfg.windError };
+        angle = chooseAngle(targetX);
+        bias = 0;
         misses = 0;
+        lastOffset = 0;
       }
-      const { powder: solved } = solve(perceived, lo, hi, angle);
-      const shrink = 0.5 ** misses;
-      const shot = {
-        angle: Math.round(angle + (rand() * 2 - 1) * cfg.angleError * shrink),
-        powder: Math.round(solved + (rand() * 2 - 1) * cfg.powderError * shrink),
-      };
-      last = { ...shot };
-      return shot;
+      // On corrige le biais mesuré, puis on ajoute l'erreur de visée du niveau (de plus en plus petite à chaque tir manqué).
+      const offset = -bias + gauss(rand) * cfg.aimError * 0.5 ** misses;
+      lastOffset = offset;
+      const aimX = targetX + dir * offset;
+      return { angle, powder: Math.round(solve(angle, aimX)) };
     },
-    /** Retient l'écart de son tir pour resserrer la fourchette de poudre à la prochaine tentative. */
+    /** Mesure l'écart de son obus : l'erreur systématique (vent mal estimé, etc.) est corrigée au tir suivant. */
     observe(round, trajectory) {
-      if (!last) return;
-      const x = trajectory.path[trajectory.path.length - 1][0];
-      const over = (side === LEFT ? 1 : -1) * (x - round.castles[1 - side]);
-      if (over < 0) lo = Math.max(lo, Math.min(last.powder, hi));
-      else hi = Math.min(hi, Math.max(last.powder, lo));
+      const impactX = trajectory.path[trajectory.path.length - 1][0];
+      const miss = dir * (impactX - round.castles[1 - side]);
+      bias = miss - lastOffset;
       misses++;
     },
   };

@@ -82,7 +82,7 @@ const key = (type, k) => call('Input.dispatchKeyEvent', { type, key: k, code: KE
 const press = async (k, times = 1) => { for (let i = 0; i < times; i++) { await key('keyDown', k); await key('keyUp', k); } };
 const rect = (sel) => ev(`(() => { const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, cx: r.x + r.width / 2, cy: r.y + r.height / 2 }; })()`);
 const app = () => ev('(() => { const a = window.__hillshot.app; return { mode: a.mode, phase: a.phase, turn: a.turn, shots: a.shots, hp: a.hp, score: a.score, anim: !!a.anim }; })()');
-const val = (sel) => ev(`document.querySelector(${JSON.stringify(sel)}).textContent`);
+const val = (sel) => ev(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); return e.value || e.textContent; })()`);
 /** Pixels noirs du calque de fond (colline, ciel et traces des tirs) : un indicateur de ce qui a été tracé. */
 const darkPixels = () => ev('(() => { const s = window.__hillshot.scene; const d = s.bgx.getImageData(0, 0, 640, 380).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] < 40 && d[i + 1] < 40 && d[i + 2] < 40) n++; return n; })()');
 const hold = async (sel, ms) => {
@@ -196,6 +196,43 @@ describe('page et mode local', () => {
     await ev(`(() => { const a = window.__hillshot.app; a.shots[${side}].angle = 90; })()`);
     await press('ArrowUp', 3);
     assert.equal(await app().then((x) => x.shots[side].angle), 90, 'borné à 90°');
+  });
+
+  test('saisie directe de l\'angle et de la poudre, bornée, et on peut redescendre depuis le maximum', async () => {
+    await open(DESKTOP);
+    await click('#menu [data-action=local]');
+    await waitFor(async () => (await app()).phase === 'aim', 4000, 'phase de réglage');
+    const side = (await app()).turn;
+    const typeIn = async (sel, text) => {
+      await ev(`(() => { const f = document.querySelector(${JSON.stringify(sel)}); f.focus(); f.select(); })()`);
+      await call('Input.insertText', { text });
+    };
+    await typeIn(`#v-angle-${side}`, '72');
+    assert.equal((await app()).shots[side].angle, 72, 'la valeur tapée est appliquée tout de suite');
+    await press('Enter');                                                  // valide la saisie
+    assert.equal(await ev('document.activeElement === document.body'), true, 'Entrée termine la saisie sans tirer');
+    assert.equal((await app()).phase, 'aim');
+    await typeIn(`#v-powder-${side}`, '999');
+    assert.equal((await app()).shots[side].powder, 400, '999 g est ramené à 400');
+    await ev(`document.querySelector('#v-powder-${side}').blur()`);
+    assert.equal(await val(`#v-powder-${side}`), '400');
+    await typeIn(`#v-angle-${side}`, '');
+    for (const ch of ['a', '9', 'x', '5']) await call('Input.insertText', { text: ch });          // frappe caractère par caractère
+    assert.equal((await app()).shots[side].angle, 90, 'les lettres sont ignorées, 95° est ramené à 90°');
+    // depuis le maximum : flèche du bas (souris), flèche du clavier, molette
+    await ev(`(() => { const a = window.__hillshot.app; a.shots[${side}].powder = 400; })()`);
+    await hold(`.col[data-p="${side}"] .step[data-k=powder][data-d="-1"]`, 120);
+    const afterMouse = Number(await val(`#v-powder-${side}`));
+    assert.ok(afterMouse < 400, `la flèche du bas fait redescendre depuis 400 : ${afterMouse}`);
+    await ev(`(() => { const a = window.__hillshot.app; a.shots[${side}].powder = 400; })()`);
+    await press('ArrowLeft');
+    assert.equal(await app().then((x) => x.shots[side].powder), 399, 'le clavier aussi');
+    await ev(`(() => { const a = window.__hillshot.app; a.shots[${side}].powder = 400; })()`);
+    await ev(`document.querySelector('#v-powder-${side}').closest('.col').dispatchEvent(new WheelEvent('wheel', { deltaY: 100, cancelable: true }))`);
+    assert.equal(await app().then((x) => x.shots[side].powder), 399, 'la molette aussi');
+    // l\'autre joueur n\'a pas la main : son champ est en lecture seule
+    assert.equal(await ev(`document.querySelector('#v-angle-${1 - side}').readOnly`), true);
+    assert.equal(await ev(`document.querySelector('#v-angle-${side}').readOnly`), false);
   });
 
   test('contre l\'ordinateur : on tire, l\'obus laisse sa trace, puis l\'ordinateur joue', async () => {
