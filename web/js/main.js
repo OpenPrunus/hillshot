@@ -18,7 +18,7 @@ const SCENE_BASE_H = 22 + 20 + 380 + 118 + 2;
 
 const scene = new Scene($('#scene'));
 const windCanvas = $('#wind');
-const panels = { menu: $('#menu'), online: $('#online'), over: $('#over'), help: $('#help'), names: $('#names-dialog'), leaders: $('#leaders') };
+const panels = { quit: $('#quit-dialog'), menu: $('#menu'), online: $('#online'), over: $('#over'), help: $('#help'), names: $('#names-dialog'), leaders: $('#leaders') };
 
 // ---------------------------------------------------------------- réglages
 const opts = { level: 'normal', target: 5, mode: 'classic', names: ['', ''], nick: '' };
@@ -139,6 +139,7 @@ function renderHud() {
   const showHp = app.mode !== null && (app.duel?.mode ?? app.modeName) === 'health';
   for (const side of [LEFT, RIGHT]) $(`#hp-${side}`).textContent = showHp ? `${app.hp[side]}%` : '';
   $('#fire').disabled = active === null;
+  $('#menu-quit').disabled = app.mode === null;
   $('#turn-info').textContent = turnText();
   $('#ping').textContent = app.mode === 'online' && net.pingMs !== null ? t('ping', { ms: net.pingMs }) : '';
 }
@@ -186,9 +187,14 @@ const normKey = (e) => (e.key.length === 1 ? e.key.toLowerCase() : e.key);
 window.addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
   audio.unlock();
-  const side = controlledSide();
   const k = normKey(e);
-  if (side === null) return;
+  if (k === 'Escape' && app.mode !== null) {
+    e.preventDefault();
+    if (panels.quit.hidden) askQuit(); else showPanel('');
+    return;
+  }
+  const side = controlledSide();
+  if (side === null || !panels.quit.hidden) return;
   const big = e.shiftKey;
   const map = {
     ArrowUp: ['angle', big ? 5 : 1], w: ['angle', big ? 5 : 1], z: ['angle', big ? 5 : 1],
@@ -375,6 +381,17 @@ function showOver(winner, forfeit) {
   audio.play(humanWon ? 'win' : 'lose');
   later(() => showPanel('over'), forfeit ? 100 : 700);
   renderHud();
+}
+
+/** Quitter la partie en cours (menu Fichier, case de fermeture ou Échap) : confirmation, car en ligne c'est un forfait. */
+function askQuit() {
+  if (app.mode === null) return;
+  if (app.phase === 'over') {
+    document.querySelector('#over [data-action=quit]').click();
+    return;
+  }
+  $('#quit-text').textContent = t(app.mode === 'online' ? 'confirmQuitOnline' : 'confirmQuit');
+  showPanel('quit');
 }
 
 function endSession() {
@@ -730,6 +747,8 @@ document.addEventListener('click', (e) => {
     case 'toggleLang': i18n.setLang(i18n.getLang() === 'fr' ? 'en' : 'fr'); refreshLabels(); break;
     case 'help': showPanel('help'); break;
     case 'closeHelp': showPanel(app.mode === null ? 'menu' : ''); break;
+    case 'askQuit': askQuit(); break;
+    case 'cancelQuit': showPanel(''); break;
     default: break;
   }
 });

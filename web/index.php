@@ -25,6 +25,7 @@ $ws = (string) getenv('HILLSHOT_WS');
           <li><button data-action="local" data-i18n="local2p"></button></li>
           <li><button data-action="online" data-i18n="online"></button></li>
           <li class="sep"></li>
+          <li><button data-action="askQuit" id="menu-quit" data-i18n="quitGame"></button></li>
           <li><button data-action="resetScores" data-i18n="resetScores"></button></li>
           <li><button data-action="leaderboard" data-i18n="leaderboard"></button></li>
         </ul></div>
@@ -42,7 +43,7 @@ $ws = (string) getenv('HILLSHOT_WS');
         </ul></div>
       <span id="ping" class="ping"></span>
     </div>
-    <div id="titlebar"><span class="close" aria-hidden="true"></span><span class="title">Hillshot 1.0</span></div>
+    <div id="titlebar"><button class="close" data-action="askQuit" data-i18n-aria="quitGame"></button><span class="title">Hillshot 1.0</span></div>
 
     <div id="stage">
       <canvas id="scene" width="640" height="380" aria-label="Hillshot"></canvas>
@@ -126,6 +127,15 @@ $ws = (string) getenv('HILLSHOT_WS');
         <table class="board"><thead><tr><th data-i18n="rank"></th><th data-i18n="name"></th><th data-i18n="elo"></th><th data-i18n="wl"></th></tr></thead><tbody id="board-menu"></tbody></table>
         <p class="hint" data-i18n="leadersHint"></p>
         <button class="btn small" data-action="closeLeaders" data-i18n="ok"></button>
+      </section>
+
+      <section id="quit-dialog" class="panel small" hidden>
+        <h2 data-i18n="quitGame"></h2>
+        <p id="quit-text" class="status"></p>
+        <div class="stack">
+          <button class="btn primary" data-action="quit" data-i18n="yes"></button>
+          <button class="btn" data-action="cancelQuit" data-i18n="no"></button>
+        </div>
       </section>
 
       <section id="over" class="panel small" hidden>

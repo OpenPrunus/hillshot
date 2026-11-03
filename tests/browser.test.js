@@ -115,6 +115,27 @@ describe('page et mode local', () => {
     assert.deepEqual(errors, []);
   });
 
+  test('quitter la partie : menu Fichier, case de fermeture et Échap, avec confirmation', async () => {
+    await open(DESKTOP);
+    assert.equal(await ev('document.querySelector("#menu-quit").disabled'), true, 'rien à quitter dans le menu');
+    await click('#menu [data-action=local]');
+    await waitFor(async () => (await app()).phase === 'aim', 4000, 'phase de réglage');
+    assert.equal(await ev('document.querySelector("#menu-quit").disabled'), false);
+    await click('#titlebar .close');
+    assert.equal(await ev('!document.querySelector("#quit-dialog").hidden'), true, 'la case de fermeture demande confirmation');
+    await click('#quit-dialog [data-action=cancelQuit]');
+    assert.equal((await app()).mode, 'local', 'on reste en jeu');
+    await press('Escape');
+    assert.equal(await ev('!document.querySelector("#quit-dialog").hidden'), true, 'Échap aussi');
+    await press('Escape');
+    assert.equal(await ev('document.querySelector("#quit-dialog").hidden'), true, 'Échap ferme le dialogue');
+    await click('#menu-quit');
+    await click('#quit-dialog [data-action=quit]');
+    assert.equal((await app()).mode, null);
+    assert.equal(await ev('!document.querySelector("#menu").hidden'), true, 'retour au menu principal');
+    await shot('08-quit');
+  });
+
   test('la barre de menus Macintosh ouvre ses menus', async () => {
     await open(DESKTOP);
     assert.equal(await ev('document.querySelector(".menu ul").hidden'), true);
@@ -327,5 +348,7 @@ describe('mode en ligne avec un robot adversaire', () => {
     assert.match(await val('#over-title'), /gagné|win/i);
     assert.deepEqual(errors, []);
     robot.close();
+    await click('#over [data-action=quit]');
+    await waitFor(() => ev('!document.querySelector("#lobby").hidden'), 3000, 'retour au salon');
   });
 });

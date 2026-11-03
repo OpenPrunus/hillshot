@@ -14,13 +14,15 @@ body { display: grid; place-items: center; overflow: hidden; }
 .menu > button:hover, .menu > button.open { background: var(--ink); color: var(--paper); }
 .menu ul { position: absolute; left: 0; top: 100%; min-width: 190px; margin: 0; padding: 2px 0; list-style: none; background: var(--paper); border: 1px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); }
 .menu li button, .menu li a { display: block; width: 100%; padding: 4px 14px; text-align: left; font: inherit; color: inherit; text-decoration: none; background: none; border: 0; cursor: pointer; }
-.menu li button:hover, .menu li a:hover { background: var(--ink); color: var(--paper); }
+.menu li button:disabled { opacity: 0.4; cursor: default; }
+.menu li button:hover:not(:disabled), .menu li a:hover { background: var(--ink); color: var(--paper); }
 .menu li.sep { height: 1px; margin: 3px 0; background: var(--ink); }
 .ping { margin-left: auto; font-size: 11px; color: #555; }
 
 #titlebar { position: relative; height: 20px; border-bottom: 1px solid var(--ink); background: repeating-linear-gradient(0deg, var(--ink) 0 1px, var(--paper) 1px 3px); display: grid; place-items: center; }
 #titlebar .title { padding: 0 10px; background: var(--paper); font-weight: bold; }
-#titlebar .close { position: absolute; left: 8px; top: 4px; width: 11px; height: 11px; background: var(--paper); border: 1px solid var(--ink); }
+#titlebar .close { position: absolute; left: 8px; top: 4px; width: 11px; height: 11px; padding: 0; background: var(--paper); border: 1px solid var(--ink); cursor: pointer; }
+#titlebar .close:hover { background: var(--ink); }
 
 #stage { position: relative; width: 640px; height: 380px; background: #8ec6f5; overflow: hidden; }
 #scene { display: block; width: 640px; height: 380px; image-rendering: pixelated; }
