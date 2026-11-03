@@ -90,6 +90,8 @@ PHP 8.5 features in use: `clone with` on readonly classes (`Player`), `#[\NoDisc
 property hooks and asymmetric visibility (`Duel`, `Client`, `RankingBook`), typed class constants, enums, `readonly` classes,
 `#[\Override]`, `json_validate` and `Random\Randomizer` injection.
 
+Class diagrams (editable in [draw.io](https://app.diagrams.net)) are in [`docs/diagrams/`](docs/diagrams): the game engine, the network layer and facade, matches and ranking.
+
 ### How online play works
 
 - The browser opens a WebSocket, sends `hello` (nickname + token) and joins the lobby. `queue` starts a quick match, `challenge`
