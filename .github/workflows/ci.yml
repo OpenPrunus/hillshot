@@ -109,6 +109,7 @@ jobs:
           curl -s $B/ | grep -q 'wss:\\/\\/example.test\\/ws'
           for f in engine.js ai.js audio.js i18n.js render.js net.js main.js; do test "$(code $B/js/$f)" = 200; done
           test "$(code $B/css/style.css)" = 200
+          for f in manifest.webmanifest sw.js icons/icon-192.png; do test "$(code $B/$f)" = 200; done
           # the leaderboard API: empty at first, GET only, and it never serves the data directory
           test "$(curl -s $B/api.php)" = '[]'
           test "$(code -X DELETE $B/api.php)" = 405
