@@ -1,0 +1,26 @@
+services:
+  hillshot:                         # site web (PHP 8.5 + Apache)
+    build: .
+    ports:
+      - "8092:80"
+    environment:
+      # URL WebSocket vue par le navigateur ; vide = même hôte, port 8081 (ou /ws derrière HTTPS)
+      HILLSHOT_WS: "ws://localhost:8093"
+    volumes:
+      - data:/var/www/html/data
+    restart: unless-stopped
+
+  hillshot-ws:                      # serveur de jeu multijoueur (même image, autre commande)
+    build: .
+    command: ["php", "/opt/hillshot/server.php"]
+    ports:
+      - "8093:8081"
+    volumes:
+      - data:/var/www/html/data   # classement (écrit ici, lu par le site)
+    environment:
+      WS_PORT: "8081"
+      WS_ALLOWED_ORIGINS: ""     # ex. "https://hillshot.exemple.fr" pour restreindre
+    restart: unless-stopped
+
+volumes:
+  data:

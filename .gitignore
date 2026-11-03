@@ -1,0 +1,6 @@
+vendor/
+node_modules/
+.phpunit.cache/
+web/data/*.json
+web/data/*.tmp
+.phpunit.result.cache

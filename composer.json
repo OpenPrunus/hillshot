@@ -1,0 +1,44 @@
+{
+  "name": "openprunus/hillshot",
+  "description": "Hillshot: a turn-based artillery duel across a hill (PHP 8.5 server, JS client)",
+  "license": "MIT",
+  "type": "project",
+  "require": {
+    "php": ">=8.5",
+    "ext-json": "*",
+    "ext-mbstring": "*",
+    "openprunus/arcade-core": "^1.0",
+    "psr/clock": "^1.0",
+    "psr/log": "^3.0"
+  },
+  "require-dev": {
+    "phpstan/phpstan": "^2.3",
+    "phpunit/phpunit": "^12.0",
+    "squizlabs/php_codesniffer": "^4.0"
+  },
+  "config": {
+    "sort-packages": true,
+    "optimize-autoloader": true
+  },
+  "scripts": {
+    "test": "phpunit",
+    "cs": "phpcs",
+    "cs:fix": "phpcbf",
+    "stan": "phpstan analyse --no-progress --memory-limit=512M",
+    "check": [
+      "@cs",
+      "@stan",
+      "@test"
+    ]
+  },
+  "autoload": {
+    "psr-4": {
+      "Hillshot\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Hillshot\\Tests\\": "tests/php/"
+    }
+  }
+}

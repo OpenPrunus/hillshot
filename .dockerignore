@@ -1,0 +1,9 @@
+.git
+.github
+vendor
+node_modules
+.phpunit.cache
+tests
+docs
+web/data/*.json
+web/data/*.tmp

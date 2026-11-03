@@ -1,0 +1,20 @@
+{
+  "name": "hillshot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Hillshot: a turn-based artillery duel for the browser",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "npm run test:unit && npm run test:integration && npm run test:browser",
+    "test:unit": "node --test tests/engine.test.js tests/ai.test.js tests/i18n.test.js",
+    "test:integration": "node --test --test-timeout=120000 tests/integration.test.js",
+    "test:browser": "node --test --test-timeout=200000 tests/browser.test.js",
+    "lint": "for f in web/js/*.js tests/*.js tests/fixtures/*.js; do node --check $f || exit 1; done",
+    "fixtures": "node tests/fixtures/generate.js",
+    "serve": "php -S 0.0.0.0:8080 -t web"
+  }
+}
