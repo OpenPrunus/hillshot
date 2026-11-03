@@ -200,6 +200,24 @@ describe('page et mode local', () => {
     assert.deepEqual(errors, []);
   });
 
+  test('les noms par défaut et les messages suivent la langue, même en cours de partie', async () => {
+    await open(DESKTOP, 'en');
+    await ev('window.__hillshot.opts.level = "easy"');
+    await click('#menu [data-action=ai]');
+    await waitFor(async () => { const a = await app(); return a.phase === 'aim' && a.turn === 0; }, 20000, 'à nous de tirer');
+    assert.equal(await val('#name-0'), 'You');
+    assert.equal(await val('#turn-info'), 'Your turn to fire');
+    await click('#opt-lang');
+    assert.equal(await val('#name-0'), 'Toi', 'le nom change avec la langue');
+    assert.equal(await val('#turn-info'), 'À toi de tirer');
+    await click('#opt-lang');
+    // un obus qui retombe sur son propre château : message à la deuxième personne, dans la langue courante
+    await ev('(() => { const a = window.__hillshot.app; a.shots[0] = { angle: 90, powder: 0 }; })()');
+    await press(' ');
+    await waitFor(() => ev('!document.querySelector("#banner").hidden && /castle/i.test(document.querySelector("#banner").textContent)'), 12000, 'message de manche');
+    assert.equal(await val('#banner'), 'You destroyed your own castle!');
+  });
+
   test('une manche gagnée remet un nouveau terrain et efface les traces', async () => {
     await open(DESKTOP);
     await click('#menu [data-action=local]');

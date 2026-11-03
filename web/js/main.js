@@ -31,7 +31,8 @@ const app = {
   duel: null,          // moteur (modes locaux)
   ai: null,
   rand: seeded(1),
-  names: ['', ''],
+  names: ['', ''],      // noms saisis ou pseudos en ligne ; vide = nom par défaut (traduit à l'affichage)
+  nameKeys: [null, null],
   round: null,
   hp: [100, 100],
   score: [0, 0],
@@ -52,6 +53,10 @@ const app = {
   over: null,
 };
 const online = { status: 'idle', me: null, players: [], invite: null, ranked: false, oppLeft: false };
+
+/** Nom affiché d'un joueur : le pseudo, sinon le nom par défaut dans la langue courante (« Toi » / « You », « Mac »…). */
+const nameOf = (side) => app.names[side] || (app.nameKeys[side] ? t(app.nameKeys[side]) : '');
+const isYou = (side) => !app.names[side] && app.nameKeys[side] === 'you';
 
 const later = (fn, ms) => { const id = setTimeout(fn, ms); app.timers.push(id); return id; };
 const clearTimers = () => { app.timers.forEach(clearTimeout); app.timers = []; };
@@ -129,8 +134,8 @@ function renderHud() {
   }
   $('#score-0').textContent = String(app.score[0]);
   $('#score-1').textContent = String(app.score[1]);
-  $('#name-0').textContent = app.names[0];
-  $('#name-1').textContent = app.names[1];
+  $('#name-0').textContent = nameOf(0);
+  $('#name-1').textContent = nameOf(1);
   const showHp = app.mode !== null && (app.duel?.mode ?? app.modeName) === 'health';
   for (const side of [LEFT, RIGHT]) $(`#hp-${side}`).textContent = showHp ? `${app.hp[side]}%` : '';
   $('#fire').disabled = active === null;
@@ -141,9 +146,8 @@ function renderHud() {
 function turnText() {
   if (app.mode === null || app.phase === 'over' || app.phase === 'idle') return '';
   if (app.phase === 'fly' || app.phase === 'wait') return app.phase === 'fly' ? t('flying') : '';
-  const who = app.names[app.turn];
-  if (app.mode === 'online') return app.turn === app.mySide ? t('yourTurn', { s: Math.max(0, app.left) }) : t('turnOf', { name: who });
-  return t('turnOf', { name: who });
+  if (app.mode === 'online') return app.turn === app.mySide ? t('yourTurn', { s: Math.max(0, app.left) }) : t('turnOf', { name: nameOf(app.turn) });
+  return isYou(app.turn) ? t('yourTurnPlain') : t('turnOf', { name: nameOf(app.turn) });
 }
 
 function setupSteppers() {
@@ -224,7 +228,8 @@ function startLocal(mode) {
   app.rand = seeded((Math.random() * 2 ** 31) | 0);
   app.duel = createDuel({ target: Number(opts.target), mode: opts.mode, round: generateRound(app.rand), first: app.rand() < 0.5 ? LEFT : RIGHT });
   app.ai = mode === 'ai' ? createAI(RIGHT, opts.level, (Math.random() * 2 ** 31) | 0) : null;
-  app.names = mode === 'ai' ? [opts.names[0] || t('you'), t('cpu')] : [opts.names[0] || t('player1'), opts.names[1] || t('player2')];
+  app.names = [opts.names[0] || '', mode === 'ai' ? '' : opts.names[1] || ''];
+  app.nameKeys = mode === 'ai' ? ['you', 'cpu'] : ['player1', 'player2'];
   app.target = app.duel.target;
   app.modeName = opts.mode;
   app.score = [0, 0];
@@ -287,7 +292,8 @@ function afterFlightLocal(res) {
 function roundText(res) {
   const loser = 1 - res.rw;
   const by = res.by ?? app.anim?.side;
-  return by === loser ? t('roundSelf', { name: app.names[loser] }) : t('roundDestroyed', { name: app.names[loser] });
+  if (isYou(loser)) return t(by === loser ? 'roundSelfYou' : 'roundDestroyedYou');
+  return t(by === loser ? 'roundSelf' : 'roundDestroyed', { name: nameOf(loser) });
 }
 
 let bannerTimer = 0;
@@ -361,7 +367,7 @@ function showOver(winner, forfeit) {
   app.phase = 'over';
   clearTimers();
   const humanWon = app.mode === 'ai' ? winner === LEFT : true;
-  $('#over-title').textContent = app.mode === 'ai' ? t(humanWon ? 'youWin' : 'youLose') : t('playerWins', { name: app.names[winner] });
+  $('#over-title').textContent = app.mode === 'ai' ? t(humanWon ? 'youWin' : 'youLose') : t('playerWins', { name: nameOf(winner) });
   $('#over-detail').textContent = `${app.score[0]} – ${app.score[1]}`;
   $('#over-again').textContent = t('playAgain');
   $('#over-again').disabled = false;
@@ -386,6 +392,7 @@ function endSession() {
   app.hp = [100, 100];
   app.score = [0, 0];
   app.names = ['', ''];
+  app.nameKeys = [null, null];
   showPanel('menu');
   renderHud();
 }
@@ -430,6 +437,7 @@ function resetBoard() {
   app.round = IDLE_ROUND;
   scene.setRound(IDLE_ROUND);
   app.names = ['', ''];
+  app.nameKeys = [null, null];
   app.score = [0, 0];
   app.hp = [100, 100];
   renderHud();
@@ -540,8 +548,9 @@ function startOnlineMatch(m) {
   online.ranked = m.ranked;
   online.oppLeft = false;
   online.invite = null;
-  const me = online.me?.name ?? t('you');
+  const me = online.me?.name ?? '';
   app.names = m.side === LEFT ? [me, m.opp.name] : [m.opp.name, me];
+  app.nameKeys = m.side === LEFT ? ['you', null] : [null, 'you'];
   app.score = [0, 0];
   app.shots = [{ angle: 45, powder: 150 }, { angle: 45, powder: 150 }];
   hidePanels();
