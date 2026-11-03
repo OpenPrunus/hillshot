@@ -6,6 +6,7 @@ import * as i18n from './i18n.js';
 import * as audio from './audio.js';
 import { Scene, drawWind, drawCannonThumb, drawPowderThumb } from './render.js';
 import { Net, playerToken } from './net.js';
+import { layoutFor } from './layout.js';
 
 const { t } = i18n;
 const $ = (sel) => document.querySelector(sel);
@@ -117,6 +118,13 @@ function adjust(side, key, delta) {
   renderHud();
 }
 
+/** Le côté dont les compteurs restent affichés sur téléphone : le mien (en ligne, ou contre l'ordinateur), sinon celui qui joue. */
+function mineSide() {
+  if (app.mode === 'online') return app.mySide;
+  if (app.mode === 'local') return app.turn;
+  return LEFT;
+}
+
 function renderHud() {
   const active = controlledSide();
   for (const side of [LEFT, RIGHT]) {
@@ -131,6 +139,7 @@ function renderHud() {
     const hidden = app.mode === 'online' && side !== app.mySide && app.phase === 'aim';
     $(`#v-angle-${side}`).title = hidden ? '' : `${s.angle}°`;
     for (const col of $$(`.col[data-p="${side}"]`)) {
+      col.classList.toggle('mine', side === mineSide());
       col.classList.toggle('active', active === side);
       col.classList.toggle('idle', active !== side && app.mode !== null);
       for (const b of col.querySelectorAll('.step')) b.disabled = active !== side;
@@ -816,14 +825,23 @@ $('#join').addEventListener('submit', (e) => {
 // La fenêtre Macintosh (640 px de large) s'adapte à l'écran.
 function fit() {
   const mac = $('#mac');
+  const fitEl = $('#fit');
+  const layout = layoutFor(window.innerWidth, window.innerHeight);
+  document.body.dataset.layout = layout;
+  if (layout !== 'desktop') {
+    mac.style.transform = '';
+    fitEl.style.width = '';
+    fitEl.style.height = '';
+    return;
+  }
   const h = mac.offsetHeight || SCENE_BASE_H;
   const s = Math.min(window.innerWidth / 650, window.innerHeight / (h + 10));
-  const fitEl = $('#fit');
   mac.style.transform = `scale(${s})`;
   fitEl.style.width = `${640 * s + 4}px`;
   fitEl.style.height = `${h * s + 4}px`;
 }
 window.addEventListener('resize', fit);
+window.addEventListener('orientationchange', () => setTimeout(fit, 150));
 
 // ---------------------------------------------------------------- démarrage
 i18n.setLang(i18n.detectLang());

@@ -42,7 +42,7 @@ the configuration variables and a reverse-proxy example.
 | Powder | → ← or **D A**, mouse wheel, the arrows or typing in the counter (**Shift**: steps of 5 and 10) |
 | Fire | **Space** or **Enter**, or the *Fire* button |
 
-On a phone the counters are touch buttons. The menu bar (File, Options, Help) offers new games, the player names, the
+On a phone the layout adapts: held upright, the scene takes the full width with big touch counters under it; held sideways, the scene is on the left and the controls on the right (only your own counters are shown). The menu bar (File, Options, Help) offers new games, the player names, the
 destruction rule, sound and language.
 
 ## Architecture

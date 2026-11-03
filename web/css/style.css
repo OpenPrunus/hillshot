@@ -94,3 +94,71 @@ input { flex: 1; min-width: 120px; }
 
 @media (pointer: coarse) { .step { height: 18px; } .gh { min-height: 36px; } }
 @media (prefers-reduced-motion: reduce) { .gh { transition: none; } }
+
+/* =====================================================================================================================
+   Téléphones. « portrait » : scène pleine largeur, commandes empilées dessous, grosses zones tactiles.
+   « land » : scène à gauche, commandes à droite. Seuls les compteurs du joueur de l'appareil restent affichés.
+   ===================================================================================================================== */
+body[data-layout='portrait'], body[data-layout='land'] { display: block; overflow: hidden; height: 100dvh; background: var(--paper, #fff); }
+body[data-layout='portrait'] #fit, body[data-layout='land'] #fit { position: static; }
+body[data-layout='portrait'] #mac, body[data-layout='land'] #mac {
+  position: static; width: 100%; max-width: none; height: 100dvh; transform: none; border: 0; box-shadow: none; display: flex; flex-direction: column;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  -webkit-touch-callout: none;
+}
+body[data-layout='portrait'] #titlebar, body[data-layout='land'] #titlebar { display: none; }
+body[data-layout='portrait'] #menubar, body[data-layout='land'] #menubar { flex: none; height: 38px; }
+body[data-layout='portrait'] .menu > button, body[data-layout='land'] .menu > button { padding: 8px 14px; font-size: 14px; }
+body[data-layout='portrait'] .menu li button, body[data-layout='portrait'] .menu li a, body[data-layout='land'] .menu li button, body[data-layout='land'] .menu li a { padding: 11px 16px; font-size: 14px; }
+body[data-layout='portrait'] .ping, body[data-layout='land'] .ping { display: none; }
+
+/* fenêtres (menu, salon, aide…) : au-dessus de tout, avec défilement, jamais plus grandes que l'écran */
+body[data-layout='portrait'] .panel, body[data-layout='land'] .panel { position: fixed; inset: 0; margin: auto; width: min(94vw, 460px); max-height: 92dvh; z-index: 30; }
+body[data-layout='portrait'] .panel.wide, body[data-layout='land'] .panel.wide { width: min(94vw, 560px); }
+body[data-layout='portrait'] input, body[data-layout='land'] input, body[data-layout='portrait'] select, body[data-layout='land'] select { font-size: 16px; }   /* évite le zoom automatique d'iOS */
+body[data-layout='portrait'] .btn, body[data-layout='land'] .btn { padding: 10px 16px; min-height: 42px; }
+body[data-layout='portrait'] .btn.small, body[data-layout='land'] .btn.small { min-height: 38px; }
+body[data-layout='portrait'] .gh, body[data-layout='land'] .gh { min-height: 40px; }
+body[data-layout='portrait'] .col:not(.mine), body[data-layout='land'] .col:not(.mine) { display: none; }
+
+/* ---- portrait ---- */
+body[data-layout='portrait'] #stage { flex: none; width: 100%; height: auto; aspect-ratio: 640 / 380; }
+body[data-layout='portrait'] #scene { width: 100%; height: 100%; }
+body[data-layout='portrait'] #banner { top: 12%; }
+body[data-layout='portrait'] #banner span { font-size: 13px; padding: 4px 12px; }
+body[data-layout='portrait'] #panel { flex: 1 1 auto; min-height: 0; height: auto; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr; border-top: 1px solid var(--ink); }
+body[data-layout='portrait'] #center { grid-column: 1 / -1; grid-row: 1; display: grid; grid-template-columns: 1fr auto; grid-template-areas: 'scores fire' 'names fire' 'turn wind'; align-items: center; gap: 2px 14px; padding: 8px 14px; border: 0; border-bottom: 1px solid var(--ink); }
+body[data-layout='portrait'] .scores { grid-area: scores; font-size: 24px; justify-content: flex-start; }
+body[data-layout='portrait'] .names { grid-area: names; gap: 18px; justify-content: flex-start; font-size: 13px; }
+body[data-layout='portrait'] .names span { max-width: 45%; }
+body[data-layout='portrait'] #fire { grid-area: fire; min-width: 150px; min-height: 58px; font-size: 20px; }
+body[data-layout='portrait'] .turn { grid-area: turn; text-align: left; font-size: 13px; min-height: 18px; }
+body[data-layout='portrait'] #wind { grid-area: wind; justify-self: end; }
+body[data-layout='portrait'] .col { grid-row: 2; justify-content: center; gap: 6px; padding: 10px 8px; }
+body[data-layout='portrait'] .lbl { font-size: 14px; padding: 1px 12px; }
+body[data-layout='portrait'] .spin { width: min(100%, 168px); }
+body[data-layout='portrait'] .spin .val { width: 100%; padding: 6px 0; font-size: 28px; }
+body[data-layout='portrait'] .step { width: 100%; height: 52px; font-size: 18px; }
+body[data-layout='portrait'] .thumb { width: 72px; height: 72px; }
+
+/* ---- paysage ---- */
+body[data-layout='land'] #mac { display: grid; grid-template-columns: minmax(0, 1fr) 240px; grid-template-rows: 38px minmax(0, 1fr); }
+body[data-layout='land'] #menubar { grid-column: 1 / -1; grid-row: 1; }
+body[data-layout='land'] #stage { grid-column: 1; grid-row: 2; width: 100%; height: 100%; background: #9bcff9; }
+body[data-layout='land'] #scene { width: 100%; height: 100%; object-fit: contain; object-position: center bottom; }
+body[data-layout='land'] #banner { top: 10%; }
+body[data-layout='land'] #panel { grid-column: 2; grid-row: 2; height: auto; display: flex; flex-wrap: wrap; align-content: flex-start; overflow: auto; border-top: 0; border-left: 1px solid var(--ink); }
+body[data-layout='land'] #center { order: -1; flex: 0 0 100%; display: grid; grid-template-columns: 1fr auto; grid-template-areas: 'scores wind' 'names names' 'fire fire' 'turn turn'; gap: 2px 8px; padding: 6px 10px; border: 0; border-bottom: 1px solid var(--ink); }
+body[data-layout='land'] .scores { grid-area: scores; font-size: 22px; justify-content: flex-start; }
+body[data-layout='land'] .names { grid-area: names; gap: 14px; justify-content: flex-start; font-size: 12px; }
+body[data-layout='land'] #wind { grid-area: wind; width: 80px; }
+body[data-layout='land'] #fire { grid-area: fire; width: 100%; min-height: 46px; font-size: 18px; }
+body[data-layout='land'] .turn { grid-area: turn; text-align: center; font-size: 12px; min-height: 16px; }
+body[data-layout='land'] .col { flex: 0 0 50%; padding: 6px 4px; gap: 4px; }
+body[data-layout='land'] .spin { width: 100px; }
+body[data-layout='land'] .spin .val { width: 100%; padding: 4px 0; font-size: 22px; }
+body[data-layout='land'] .step { width: 100%; height: 38px; font-size: 16px; }
+body[data-layout='land'] .thumb { display: none; }
+
+/* voile derrière les fenêtres (menu, aide, salon…) sur téléphone */
+body[data-layout='portrait'] #stage:has(.panel:not([hidden]))::after, body[data-layout='land'] #stage:has(.panel:not([hidden]))::after { content: ''; position: fixed; inset: 0; z-index: 25; background: rgba(20, 30, 50, 0.45); }

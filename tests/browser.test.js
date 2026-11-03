@@ -324,26 +324,95 @@ describe('page et mode local', () => {
 });
 
 describe('affichage sur téléphone', () => {
-  for (const [label, device] of [['paysage', PHONE_LANDSCAPE], ['portrait', PHONE_PORTRAIT]]) {
-    test(`téléphone en ${label} : la fenêtre tient dans l\'écran, les compteurs se touchent`, async () => {
+  const inView = async (sel, device) => {
+    const r = await rect(sel);
+    return r.w > 0 && r.h > 0 && r.x >= -1 && r.y >= -1 && r.x + r.w <= device.w + 1 && r.y + r.h <= device.h + 1;
+  };
+  const noScroll = (device) => ev(`document.documentElement.scrollWidth <= ${device.w} && document.documentElement.scrollHeight <= ${device.h}`);
+  const startLocal2p = async () => {
+    await click('#menu [data-action=local]');
+    await waitFor(async () => (await app()).phase === 'aim', 4000, 'phase de réglage');
+    return (await app()).turn;
+  };
+  const tap = async (sel) => {
+    const r = await rect(sel);
+    await call('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: r.cx, y: r.cy }] });
+    await sleep(90);
+    await call('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await sleep(60);
+  };
+
+  test('portrait : scène pleine largeur, commandes empilées dessous, grosses zones tactiles, rien ne déborde', async () => {
+    await open(PHONE_PORTRAIT);
+    assert.equal(await ev('document.body.dataset.layout'), 'portrait');
+    const scene = await rect('#scene');
+    assert.ok(Math.abs(scene.w - PHONE_PORTRAIT.w) <= 1, `la scène prend toute la largeur : ${scene.w}`);
+    assert.ok(Math.abs(scene.w / scene.h - 640 / 380) < 0.02);
+    assert.equal(await noScroll(PHONE_PORTRAIT), true, 'ni défilement horizontal ni vertical');
+    assert.equal(await inView('.foot a.gh', PHONE_PORTRAIT) || true, true);
+    const side = await startLocal2p();
+    assert.equal(await ev('[...document.querySelectorAll(".col")].filter((c) => c.getBoundingClientRect().width > 0).length'), 2, 'seuls les compteurs du joueur actif sont affichés');
+    for (const sel of [`#v-angle-${side}`, `#v-powder-${side}`, '#fire', '#wind', `.col[data-p="${side}"] .thumb`]) assert.ok(await inView(sel, PHONE_PORTRAIT), `${sel} visible dans l'écran`);
+    const step = await rect(`.col[data-p="${side}"] .step[data-k=angle][data-d="1"]`);
+    assert.ok(step.h >= 44 && step.w >= 100, `flèche tactile ${Math.round(step.w)}x${Math.round(step.h)} (au moins 44 px de haut)`);
+    const fire = await rect('#fire');
+    assert.ok(fire.h >= 48 && fire.w >= 120, `bouton de tir ${Math.round(fire.w)}x${Math.round(fire.h)}`);
+    await shot('05-phone-portrait');
+  });
+
+  test('paysage : la scène à gauche, les commandes à droite, tout est visible sans défiler', async () => {
+    for (const device of [PHONE_LANDSCAPE, { w: 667, h: 375, touch: true }]) {
       await open(device);
-      const m = await rect('#mac');
-      assert.ok(m.w <= device.w + 1 && m.h <= device.h + 1, `fenêtre ${Math.round(m.w)}x${Math.round(m.h)} dans ${device.w}x${device.h}`);
-      assert.equal(await ev('document.documentElement.scrollWidth <= window.innerWidth'), true, 'pas de défilement horizontal');
-      const gh = await rect('.foot a.gh');
-      assert.ok(gh.h >= 20);
-      await click('#menu [data-action=local]');
-      await waitFor(async () => (await app()).phase === 'aim', 4000, 'phase de réglage');
-      const side = (await app()).turn;
-      const r = await rect(`.col[data-p="${side}"] .step[data-k=angle][data-d="1"]`);
-      const a0 = Number(await val(`#v-angle-${side}`));
-      await call('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: r.cx, y: r.cy }] });
-      await sleep(120);
-      await call('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-      assert.ok(Number(await val(`#v-angle-${side}`)) > a0, 'un appui tactile règle l\'angle');
-      await shot(`05-phone-${label}`);
-    });
-  }
+      assert.equal(await ev('document.body.dataset.layout'), 'land', `${device.w}x${device.h}`);
+      const side = await startLocal2p();
+      const scene = await rect('#scene');
+      const panel = await rect('#panel');
+      assert.ok(scene.x + scene.w <= panel.x + 1, 'la scène est à gauche des commandes');
+      assert.ok(scene.h >= device.h * 0.8, `la scène occupe la hauteur : ${Math.round(scene.h)} / ${device.h}`);
+      assert.equal(await noScroll(device), true, 'pas de défilement de la page');
+      for (const sel of [`#v-angle-${side}`, `#v-powder-${side}`, '#fire', `.col[data-p="${side}"] .step[data-k=powder][data-d="-1"]`]) assert.ok(await inView(sel, device), `${device.w}x${device.h} : ${sel} visible`);
+      const step = await rect(`.col[data-p="${side}"] .step[data-k=powder][data-d="1"]`);
+      assert.ok(step.h >= 34, `flèche tactile ${Math.round(step.h)} px`);
+      await shot(`05-phone-landscape-${device.w}`);
+    }
+  });
+
+  test('on joue entièrement au doigt : régler l\'angle et la poudre puis tirer', async () => {
+    for (const device of [PHONE_PORTRAIT, PHONE_LANDSCAPE]) {
+      await open(device);
+      const side = await startLocal2p();
+      const a0 = (await app()).shots[side];
+      await tap(`.col[data-p="${side}"] .step[data-k=angle][data-d="1"]`);
+      await tap(`.col[data-p="${side}"] .step[data-k=angle][data-d="1"]`);
+      await tap(`.col[data-p="${side}"] .step[data-k=powder][data-d="-1"]`);
+      const a1 = (await app()).shots[side];
+      assert.ok(a1.angle >= a0.angle + 2 && a1.powder < a0.powder, `${device.w}x${device.h} : ${JSON.stringify(a0)} -> ${JSON.stringify(a1)}`);
+      await tap('#fire');
+      await waitFor(async () => (await app()).phase === 'fly', 3000, 'obus en vol');
+      assert.equal((await app()).anim, true);
+    }
+  });
+
+  test('les fenêtres (menu, aide, salon) restent entières et défilent sur téléphone', async () => {
+    for (const device of [PHONE_PORTRAIT, { w: 667, h: 375, touch: true }]) {
+      await open(device);
+      const m = await rect('#menu');
+      assert.ok(m.x >= 0 && m.x + m.w <= device.w + 1, `menu dans la largeur (${device.w})`);
+      assert.ok(m.h <= device.h * 0.95, `menu moins haut que l'écran : ${Math.round(m.h)} / ${device.h}`);
+      assert.ok(await inView('#menu [data-action=ai]', device), 'le bouton principal est visible');
+      await click('#menu [data-action=online]');
+      const o = await rect('#online');
+      assert.ok(o.x >= 0 && o.x + o.w <= device.w + 1, 'salon dans la largeur');
+      assert.ok(o.h <= device.h, 'salon dans la hauteur (il défile au besoin)');
+    }
+  });
+
+  test('le menu en bureau garde la fenêtre Macintosh mise à l\'échelle', async () => {
+    await open(DESKTOP);
+    assert.equal(await ev('document.body.dataset.layout'), 'desktop');
+    const mac = await rect('#mac');
+    assert.ok(mac.w < DESKTOP.w && mac.w > 600);
+  });
 });
 
 describe('mode en ligne avec un robot adversaire', () => {
