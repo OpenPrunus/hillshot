@@ -53,7 +53,7 @@ const app = {
   last: 0,
   over: null,
 };
-const online = { status: 'idle', me: null, players: [], invite: null, ranked: false, oppLeft: false };
+const online = { status: 'idle', me: null, players: [], invite: null, ranked: false, why: null, oppLeft: false };
 
 /** Nom affiché d'un joueur : le pseudo, sinon le nom par défaut dans la langue courante (« Toi » / « You », « Mac »…). */
 const nameOf = (side) => app.names[side] || (app.nameKeys[side] ? t(app.nameKeys[side]) : '');
@@ -605,6 +605,7 @@ function startOnlineMatch(m) {
   app.queue = [];
   online.status = 'playing';
   online.ranked = m.ranked;
+  online.why = m.why ?? null;
   online.oppLeft = false;
   online.invite = null;
   const me = online.me?.name ?? '';
@@ -647,7 +648,7 @@ function onResult(m) {
   later(() => {
     if (app.mode !== 'online' || app.over !== m) return;
     $('#over-title').textContent = t(mine ? 'youWin' : 'youLose');
-    const rating = m.delta !== undefined ? t('ratingDelta', { rating: m.rating, delta: (m.delta >= 0 ? '+' : '') + m.delta }) : (m.forfeit ? '' : t(m.ranked ? 'ranked' : 'unranked'));
+    const rating = m.delta !== undefined ? t('ratingDelta', { rating: m.rating, delta: (m.delta >= 0 ? '+' : '') + m.delta }) : (m.forfeit ? '' : m.ranked ? t('ranked') : t(online.why ? `why_${online.why}` : 'unranked'));
     $('#over-detail').textContent = [`${m.score[0]} – ${m.score[1]}`, m.forfeit && mine ? t('oppLeft') : '', rating].filter(Boolean).join(' · ');
     $('#over-again').textContent = t('rematch');
     $('#over-again').disabled = online.oppLeft;

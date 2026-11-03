@@ -27,6 +27,7 @@ final class GameHubTest extends TestCase
     private GameHub $hub;
     private MutableClock $clock;
     private string $dir;
+    private int $ipCounter = 0;
 
     protected function setUp(): void
     {
@@ -56,10 +57,11 @@ final class GameHubTest extends TestCase
     }
 
     /** @return array{Client, FakeTransport} */
-    private function connect(?string $name = null, ?string $token = null): array
+    private function connect(?string $name = null, ?string $token = null, ?string $ip = null): array
     {
         $transport = new FakeTransport();
         $client = $this->hub->accept($transport);
+        $client->setAddress($ip ?? '203.0.113.' . (++$this->ipCounter));        // une adresse différente par navigateur, sauf demande contraire
         if ($name !== null) {
             $this->say($client, ['t' => 'hello', 'name' => $name, 'token' => $token]);
         }
@@ -596,5 +598,75 @@ final class GameHubTest extends TestCase
     {
         $this->assertGreaterThanOrEqual(2, MatchService::MAX_IDLE_TURNS);
         $this->assertGreaterThan(0, MatchService::PLAYBACK_PAUSE);
+    }
+
+    public function testPlayersOnTheSameAddressPlayAFriendlyMatchWithAReason(): void
+    {
+        [$a, $ta] = $this->connect('Alice', self::token('a'), '198.51.100.5');
+        [$b, $tb] = $this->connect('Bob', self::token('b'), '198.51.100.5');
+        $this->say($a, ['t' => 'queue']);
+        $this->say($b, ['t' => 'queue']);
+        $this->assertFalse($ta->last('match')['ranked']);
+        $this->assertSame('same_ip', $ta->last('match')['why']);
+        $this->assertSame('same_ip', $tb->last('match')['why']);
+    }
+
+    public function testPlayersOnDifferentAddressesAreRankedWithoutAnyReason(): void
+    {
+        [$a, $ta] = $this->connect('Alice', self::token('a'), '198.51.100.5');
+        [$b] = $this->connect('Bob', self::token('b'), '198.51.100.6');
+        $this->say($a, ['t' => 'queue']);
+        $this->say($b, ['t' => 'queue']);
+        $this->assertTrue($ta->last('match')['ranked']);
+        $this->assertArrayNotHasKey('why', $ta->last('match'));
+    }
+
+    public function testAMatchWithoutAnyKnownAddressIsNeverRefused(): void
+    {
+        $ta = new FakeTransport();
+        $tb = new FakeTransport();
+        $a = $this->hub->accept($ta);
+        $b = $this->hub->accept($tb);
+        $this->say($a, ['t' => 'hello', 'name' => 'Alice', 'token' => self::token('a')]);
+        $this->say($b, ['t' => 'hello', 'name' => 'Bob', 'token' => self::token('b')]);
+        $this->say($a, ['t' => 'queue']);
+        $this->say($b, ['t' => 'queue']);
+        $this->assertTrue($ta->last('match')['ranked']);
+    }
+
+    public function testAFourthAccountFromOneAddressIsNotRanked(): void
+    {
+        $results = [];
+        for ($i = 1; $i <= 4; $i++) {
+            [$a, $ta] = $this->connect("Farm$i", self::token("farm$i"), '198.51.100.50');
+            [$b] = $this->connect("Real$i", self::token("real$i"), "198.51.100.1$i");
+            $this->say($a, ['t' => 'queue']);
+            $this->say($b, ['t' => 'queue']);
+            $results[] = [$ta->last('match')['ranked'], $ta->last('match')['why'] ?? null];
+            $this->hub->disconnect($a);
+            $this->hub->disconnect($b);
+        }
+        $this->assertSame([[true, null], [true, null], [true, null], [false, 'too_many_accounts']], $results);
+    }
+
+    public function testTwoAddressesCannotSwapVictoriesMoreThanAFewTimesEvenAfterReconnecting(): void
+    {
+        $results = [];
+        for ($i = 1; $i <= 5; $i++) {
+            [$a, $ta] = $this->connect('Alice', self::token('a'), '198.51.100.7');
+            [$b] = $this->connect('Bob', self::token('b'), '198.51.100.8');
+            $this->say($a, ['t' => 'queue']);
+            $this->say($b, ['t' => 'queue']);
+            $results[] = $ta->last('match')['why'] ?? 'ranked';
+            $this->hub->disconnect($a);
+            $this->hub->disconnect($b);
+        }
+        $this->assertSame(['ranked', 'ranked', 'ranked', 'ranked', 'pair_limit'], $results);
+    }
+
+    public function testAClientKnowsItsAddressOnceTheServerHasResolvedIt(): void
+    {
+        [$a] = $this->connect('Alice', null, '203.0.113.99');
+        $this->assertSame('203.0.113.99', $a->ip);
     }
 }

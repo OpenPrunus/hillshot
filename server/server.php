@@ -14,6 +14,7 @@
 
 declare(strict_types=1);
 
+use Arcade\Network\TrustedProxies;
 use Arcade\Server\SocketServer;
 use Arcade\Support\Env;
 use Arcade\Support\StdoutLogger;
@@ -33,7 +34,9 @@ $store = new RankingStore($dataDir . '/ratings.json');
 
 $hub = GameHub::create(HubConfig::fromEnvironment(), $store, new SystemClock(), new StdoutLogger());
 try {
-    $server = SocketServer::listen($port, $hub, new Handshake($origins), 0.25, 300);
+    $proxies = TrustedProxies::fromString(Env::string('TRUSTED_PROXIES'));
+    $perIp = (int) Env::number('HILLSHOT_MAX_CONN_PER_IP', 10, true);
+    $server = SocketServer::listen($port, $hub, new Handshake($origins), 0.25, 300, $proxies, $perIp);
 } catch (RuntimeException $e) {
     fwrite(STDERR, $e->getMessage() . "\n");
     exit(1);

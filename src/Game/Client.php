@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Hillshot\Game;
 
+use Arcade\Server\IpAware;
 use Arcade\Server\Session;
 use Arcade\Server\Transport;
 
 /** Un navigateur connecté : identité, état, partie en cours, invitation en attente et cadence des messages. */
-final class Client implements Session
+final class Client implements Session, IpAware
 {
     public ?string $name = null;
     public string $tokenHash = '';
@@ -16,6 +17,8 @@ final class Client implements Session
     public ClientStatus $status = ClientStatus::New;
     public ?Room $room = null;
     public ?Invitation $invite = null;
+    /** Adresse IP réelle du navigateur (connue après la poignée de main) ; vide si inconnue. */
+    public string $ip = '';
 
     private int $lastSeen;
     private int $rateSecond = 0;
@@ -24,6 +27,12 @@ final class Client implements Session
     /** Pseudo accepté : le client est visible dans le salon. */
     public bool $isNamed {
         get => $this->name !== null;
+    }
+
+    #[\Override]
+    public function setAddress(string $ip): void
+    {
+        $this->ip = $ip;
     }
 
     public function __construct(public readonly int $id, private readonly Transport $transport, int $now)

@@ -12,6 +12,7 @@ use Hillshot\Engine\Shot;
 use Hillshot\Engine\Side;
 use Hillshot\Ranking\Participant;
 use Hillshot\Ranking\RankedMatch;
+use Arcade\Fair\RankingGuard;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Random\Randomizer;
@@ -35,6 +36,7 @@ final class MatchService
         private readonly LoggerInterface $logger,
         private readonly Randomizer $randomizer,
         private readonly RoundFactory $rounds,
+        private readonly RankingGuard $guard,
     ) {
     }
 
@@ -51,10 +53,11 @@ final class MatchService
             $this->cancelInvitation($client);
         }
         [$left, $right] = $this->randomizer->getInt(0, 1) === 0 ? [$a, $b] : [$b, $a];
-        $ranked = $a->hasToken && $b->hasToken && $a->tokenHash !== $b->tokenHash;
+        [$ranked, $why] = $this->decideRanked($a, $b);
         $room = new Room([$left, $right], $ranked, $this->newDuel());
+        $room->why = $why;
         $this->open($room);
-        $this->logger->info("Match {$left->name} vs {$right->name} (" . ($ranked ? 'ranked' : 'friendly') . ')');
+        $this->logger->info("Match {$left->name} vs {$right->name} (" . ($ranked ? 'ranked' : 'friendly' . ($why !== null ? ": $why" : '')) . ')');
 
         return $room;
     }
@@ -62,6 +65,22 @@ final class MatchService
     private function newDuel(): Duel
     {
         return new Duel($this->config->target, $this->config->mode, $this->rounds->create(), Side::from($this->randomizer->getInt(0, 1)));
+    }
+
+    /**
+     * Une partie est classée si les deux joueurs ont un jeton différent ET si les adresses IP le permettent
+     * (même adresse, trop de comptes depuis une adresse, mêmes deux adresses qui se rencontrent trop souvent).
+     *
+     * @return array{bool, ?string} classée ?, raison du refus le cas échéant
+     */
+    private function decideRanked(Client $a, Client $b): array
+    {
+        if (!($a->hasToken && $b->hasToken && $a->tokenHash !== $b->tokenHash)) {
+            return [false, null];
+        }
+        $why = $this->guard->check($a->ip, $a->tokenHash, $b->ip, $b->tokenHash, $this->clock->now()->getTimestamp());
+
+        return [$why === null, $why];
     }
 
     private function open(Room $room): void
@@ -77,6 +96,7 @@ final class MatchService
                 'target' => $room->duel->target,
                 'mode' => $room->duel->mode->value,
                 'ranked' => $room->ranked,
+                ...($room->why !== null ? ['why' => $room->why] : []),
                 'opp' => ['name' => $opponent->name, 'rating' => $this->book->ranking->ratingOf((string) $opponent->name)],
             ]);
         }
@@ -261,7 +281,10 @@ final class MatchService
         $room->opponentOf($side)->send(Event::RematchAsk);
         if ($room->rematch[0] && $room->rematch[1]) {
             $this->remove($room);
-            $this->open(new Room($room->players, $room->ranked, $this->newDuel()));
+            [$ranked, $why] = $this->decideRanked($room->players[0], $room->players[1]);
+            $next = new Room($room->players, $ranked, $this->newDuel());
+            $next->why = $why;
+            $this->open($next);
         }
     }
 

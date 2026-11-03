@@ -174,6 +174,34 @@ describe('serveur de jeu', () => {
     assert.equal(a.closed, false);
   });
 
+  test('même adresse IP : partie amicale non classée, avec le motif', async () => {
+    const a = await new Bot(server.url, undefined, '192.0.2.77').open();
+    const b = await new Bot(server.url, undefined, '192.0.2.77').open();
+    bots.push(a, b);
+    await a.hello('MemeIp1', token('MemeIp1'));
+    await b.hello('MemeIp2', token('MemeIp2'));
+    a.send({ t: 'queue' });
+    await a.next('queued');
+    b.send({ t: 'queue' });
+    const m = await a.next('match');
+    assert.equal(m.ranked, false);
+    assert.equal(m.why, 'same_ip');
+    a.send({ t: 'leave' });
+  });
+
+  test('trop de connexions depuis une même adresse : refus HTTP 429', async () => {
+    const small = await startGameServer({ HILLSHOT_MAX_CONN_PER_IP: '2' });
+    const open = [];
+    try {
+      for (let i = 0; i < 2; i++) open.push(await new Bot(small.url, undefined, '192.0.2.88').open());
+      await assert.rejects(() => new Bot(small.url, undefined, '192.0.2.88').open());
+      open.push(await new Bot(small.url, undefined, '192.0.2.89').open());     // une autre adresse reste acceptée
+    } finally {
+      for (const b of open) b.close();
+      small.stop();
+    }
+  });
+
   test('un client qui n\'est pas WebSocket reçoit un refus HTTP', async () => {
     const res = await fetch(`http://127.0.0.1:${server.port}/`).catch(() => null);
     assert.ok(res === null || res.status === 400);

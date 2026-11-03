@@ -55,16 +55,20 @@ export async function startGameServer(env = {}) {
 }
 
 /** Client WebSocket de test : garde tous les messages reçus et permet d'attendre un message précis. */
+let botCount = 0;
+const nextIp = () => { botCount++; return `198.18.${(botCount >> 8) & 255}.${botCount & 255}`; };   // une adresse distincte par robot
+
 export class Bot {
-  constructor(url, origin) {
+  constructor(url, origin, ip) {
     this.messages = [];
     this.url = url;
     this.origin = origin;
+    this.ip = ip ?? nextIp();
     this.closed = false;
   }
 
   async open() {
-    this.ws = new WebSocket(this.url);
+    this.ws = new WebSocket(this.url, { headers: { 'X-Real-IP': this.ip } });          // le reverse proxy transmet l'adresse du client
     this.ws.onmessage = (e) => this.messages.push(JSON.parse(e.data));
     this.ws.onclose = () => { this.closed = true; };
     await new Promise((resolve, reject) => {

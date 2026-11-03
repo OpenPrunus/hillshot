@@ -21,6 +21,7 @@ use Hillshot\Game\Handler\QueueHandler;
 use Hillshot\Game\Handler\RematchHandler;
 use Hillshot\Game\Handler\UnqueueHandler;
 use Hillshot\Ranking\RankingStore;
+use Arcade\Fair\RankingGuard;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Random\Randomizer;
@@ -62,13 +63,21 @@ final class GameHub implements Hub
     }
 
     /** Fabrique : assemble le serveur avec ses dépendances (patron Factory). */
-    public static function create(HubConfig $config, RankingStore $store, ClockInterface $clock, LoggerInterface $logger, Randomizer $randomizer = new Randomizer()): self
-    {
+    public static function create(
+        HubConfig $config,
+        RankingStore $store,
+        ClockInterface $clock,
+        LoggerInterface $logger,
+        Randomizer $randomizer = new Randomizer(),
+        ?RankingGuard $guard = null,
+    ): self {
         $lobby = new Lobby();
         $invitations = new Invitations($config->inviteTtl);
         $queue = new MatchQueue();
         $book = new RankingBook($store, $logger);
-        $matches = new MatchService($config, $lobby, $queue, $invitations, $book, $clock, $logger, $randomizer, new RoundFactory($randomizer));
+        $guard ??= RankingGuard::fromEnvironment('HILLSHOT');
+        $rounds = new RoundFactory($randomizer);
+        $matches = new MatchService($config, $lobby, $queue, $invitations, $book, $clock, $logger, $randomizer, $rounds, $guard);
 
         return new self($lobby, $invitations, $queue, $matches, $book, $config, $clock);
     }
