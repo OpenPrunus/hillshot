@@ -162,3 +162,8 @@ body[data-layout='land'] .thumb { display: none; }
 
 /* voile derrière les fenêtres (menu, aide, salon…) sur téléphone */
 body[data-layout='portrait'] #stage:has(.panel:not([hidden]))::after, body[data-layout='land'] #stage:has(.panel:not([hidden]))::after { content: ''; position: fixed; inset: 0; z-index: 25; background: rgba(20, 30, 50, 0.45); }
+
+/* lien de retour vers la page des jeux */
+.all { display: inline-flex; align-items: center; padding: 4px 12px; color: var(--ink); text-decoration: none; border: 1px solid var(--ink); border-radius: 999px; font-weight: bold; font-size: 11px; background: var(--paper); }
+.all:hover, .all:focus-visible { background: var(--ink); color: var(--paper); }
+body[data-layout='portrait'] .all, body[data-layout='land'] .all { min-height: 40px; padding: 8px 16px; font-size: 13px; }
