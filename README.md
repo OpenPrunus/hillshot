@@ -23,6 +23,7 @@ challenges, Elo leaderboard). French and English, keyboard, mouse and touch.
 - Pixel-art rendering on two canvas layers, held-down arrows that repeat (every 80 ms, then 25 ms), mouse wheel on the counters,
   sounds synthesized with the Web Audio API (no audio files).
 
+- **Installable and playable offline** (PWA): web manifest, icons, and a service worker that serves the last visit's files when there is no network. Solo and computer modes work offline; online play shows a clear message.
 ## Quick start
 
 ```bash

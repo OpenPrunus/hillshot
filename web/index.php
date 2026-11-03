@@ -10,6 +10,11 @@ $ws = (string) getenv('HILLSHOT_WS');
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="theme-color" content="#cfcfcf">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <script src="pwa.js" defer></script>
   <title>Hillshot</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%238ec6f5'/%3E%3Cpath d='M0 28Q16 -4 32 28z' fill='%233f9a3f' stroke='%23000'/%3E%3Crect x='2' y='16' width='7' height='10' fill='%239b9b9b' stroke='%23000'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="css/style.css">
