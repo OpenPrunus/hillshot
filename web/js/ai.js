@@ -30,10 +30,20 @@ export function seeded(seed) {
 
 const gauss = (rand) => Math.sqrt(-2 * Math.log(1 - rand())) * Math.cos(2 * Math.PI * rand());
 
-/** Écart d'arrivée (signé : positif = au-delà de la cible, dans le sens du tir) d'un tir de cette poudre. */
+/** Valeur donnée à un tir qui s'écrase contre la colline avant d'en avoir passé la crête : bien pire que n'importe quelle retombée. */
+const BLOCKED = -1e6;
+
+/**
+ * Écart d'arrivée (signé : positif = au-delà de la cible, dans le sens du tir) d'un tir de cette poudre.
+ * Un tir qui retombe sur la pente de son propre côté de la colline ne passe pas : il compte comme `BLOCKED`, ce qui garde la
+ * recherche monotone (plus de poudre = plus loin) et empêche l'IA de s'obstiner avec une poudre maximale qui ne passera jamais.
+ */
 function overshoot(round, side, angle, powder, targetX) {
   const trajectory = fly(round, side, { angle, powder });
   const x = trajectory.path[trajectory.path.length - 1][0];
+  const beforeCrest = side === LEFT ? x < round.hillX : x > round.hillX;
+  const mustCross = side === LEFT ? targetX > round.hillX : targetX < round.hillX;
+  if (trajectory.fate === 'ground' && beforeCrest && mustCross) return BLOCKED;
   return (side === LEFT ? 1 : -1) * (x - targetX);
 }
 
@@ -48,6 +58,7 @@ export function createAI(side, level = 'normal', seed = 1) {
   let bias = 0;               // erreur systématique mesurée sur ses tirs précédents (px, dans le sens du tir)
   let misses = 0;
   let lastOffset = 0;         // écart voulu du dernier tir par rapport à la cible
+  let lastShot = null;        // le tir précédent de la manche (pour ne jamais le rejouer à l'identique après un échec)
 
   const key = (round) => `${round.baseY}/${round.hillH}/${round.hillX}/${round.castles}/${round.wind}`;
 
@@ -63,12 +74,13 @@ export function createAI(side, level = 'normal', seed = 1) {
     return (a + b) / 2;
   }
 
-  /** Parmi quelques angles (point de départ au hasard), le premier qui permet d'atteindre la cible, sinon le moins mauvais. */
-  function chooseAngle(targetX) {
+  /** Parmi quelques angles (point de départ au hasard), le premier qui permet d'atteindre la cible, sinon le moins mauvais (sauf `avoid`). */
+  function chooseAngle(targetX, avoid = null) {
     const offset = Math.floor(rand() * angles.length);
-    let best = { angle: 50, error: Infinity };
+    let best = { angle: avoid === 50 ? 54 : 50, error: Infinity };
     for (let i = 0; i < angles.length; i++) {
       const ang = angles[(offset + i) % angles.length];
+      if (ang === avoid) continue;
       const error = Math.abs(overshoot(perceived, side, ang, solve(ang, targetX), targetX));
       if (error < 14) return ang;
       if (error < best.error) best = { angle: ang, error };
@@ -89,12 +101,28 @@ export function createAI(side, level = 'normal', seed = 1) {
         bias = 0;
         misses = 0;
         lastOffset = 0;
+        lastShot = null;
       }
       // On corrige le biais mesuré, puis on ajoute l'erreur de visée du niveau (de plus en plus petite à chaque tir manqué).
       const offset = -bias + gauss(rand) * cfg.aimError * 0.5 ** misses;
       lastOffset = offset;
-      const aimX = targetX + dir * offset;
-      return { angle, powder: Math.round(solve(angle, aimX)) };
+      // on ne vise jamais hors du terrain : un écart de visée trop grand enverrait l'obus au-delà du bord, poudre au maximum
+      const aimX = Math.max(10, Math.min(C.W - 10, targetX + dir * offset));
+      let powder = Math.round(solve(angle, aimX));
+      // Poudre au maximum (ou presque) et la cible n'est toujours pas atteinte : cet angle ne passera jamais, on en change.
+      if (powder >= C.MAX_POWDER - 1 && overshoot(perceived, side, angle, powder, aimX) < -5) {
+        angle = chooseAngle(aimX, angle);
+        powder = Math.round(solve(angle, aimX));
+      }
+      // Jamais deux fois exactement le même tir quand le précédent a raté : on varie légèrement la poudre (l'angle, lui, est gardé :
+      // la correction apprise vaut pour cet angle).
+      if (lastShot && lastShot.angle === angle && lastShot.powder === powder) {
+        const nudge = (rand() < 0.5 ? -1 : 1) * (4 + Math.floor(rand() * 12));
+        const clamp = (v) => Math.max(0, Math.min(C.MAX_POWDER, v));
+        powder = clamp(powder + nudge) !== lastShot.powder ? clamp(powder + nudge) : clamp(powder - nudge);
+      }
+      lastShot = { angle, powder };
+      return { angle, powder };
     },
     /** Mesure l'écart de son obus : l'erreur systématique (vent mal estimé, etc.) est corrigée au tir suivant. */
     observe(round, trajectory) {

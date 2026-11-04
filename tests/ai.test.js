@@ -107,3 +107,35 @@ test('après plusieurs tirs dans la manche, le niveau le plus haut a touché bie
   assert.ok(rate('hard', 3) > rate('normal', 3) && rate('normal', 3) > rate('easy', 3));
   assert.ok(rate('hard', 3) > rate('hard', 1) + 0.3, 'les tirs précédents l\'aident à corriger');
 });
+
+test('jamais deux fois le même tir après un échec, et jamais bloqué à poudre maximale tour après tour (colline qui barre la route)', () => {
+  let repeats = 0;
+  let maxed = 0;
+  let rounds = 0;
+  for (const level of ['easy', 'normal', 'hard']) {
+    for (let i = 0; i < 300; i++) {
+      for (const side of [0, 1]) {
+        const round = generateRound(seeded(3000 + i));
+        const duel = createDuel({ round, first: side, target: 99 });
+        const ai = createAI(side, level, 11 + i);
+        let prev = null;
+        let prevMaxed = false;
+        rounds++;
+        for (let k = 0; k < 8; k++) {
+          const shot = ai.decide(duel);
+          const out = fire(duel, shot);
+          ai.observe(round, out.trajectory);
+          if (prev && prev.angle === shot.angle && prev.powder === shot.powder) repeats++;
+          const isMaxed = shot.powder >= 399;
+          if (isMaxed && prevMaxed) maxed++;
+          prev = shot;
+          prevMaxed = isMaxed;
+          if (out.roundOver || (out.trajectory.fate === 'castle' && out.trajectory.hit === 1 - side)) break;
+          fire(duel, { angle: 45, powder: 80 });
+        }
+      }
+    }
+  }
+  assert.equal(repeats, 0, `${repeats} tirs rejoués à l'identique sur ${rounds} manches`);
+  assert.ok(maxed <= rounds * 0.01, `${maxed} manches où la poudre reste au maximum`);
+});
