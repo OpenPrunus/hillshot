@@ -92,7 +92,7 @@ input { flex: 1; min-width: 120px; }
 .turn { min-height: 13px; font-size: 11px; text-align: center; }
 #wind { width: 90px; height: 22px; image-rendering: pixelated; }
 
-@media (pointer: coarse) { .step { height: 18px; } .gh { min-height: 36px; } }
+@media (pointer: coarse) { .step { height: 18px; } .gh { min-height: 36px; } .options select { min-height: 40px; } .options label { min-height: 40px; } }
 @media (prefers-reduced-motion: reduce) { .gh { transition: none; } }
 
 /* =====================================================================================================================
