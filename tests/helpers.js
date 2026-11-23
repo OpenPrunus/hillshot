@@ -61,6 +61,7 @@ const nextIp = () => { botCount++; return `198.18.${(botCount >> 8) & 255}.${bot
 export class Bot {
   constructor(url, origin, ip) {
     this.messages = [];
+    this.arrival = new WeakMap();       // instant de réception de chaque message (ne change pas leur contenu)
     this.url = url;
     this.origin = origin;
     this.ip = ip ?? nextIp();
@@ -69,7 +70,11 @@ export class Bot {
 
   async open() {
     this.ws = new WebSocket(this.url, { headers: { 'X-Real-IP': this.ip } });          // le reverse proxy transmet l'adresse du client
-    this.ws.onmessage = (e) => this.messages.push(JSON.parse(e.data));
+    this.ws.onmessage = (e) => {
+      const m = JSON.parse(e.data);
+      this.arrival.set(m, Date.now());
+      this.messages.push(m);
+    };
     this.ws.onclose = () => { this.closed = true; };
     await new Promise((resolve, reject) => {
       this.ws.onopen = resolve;
@@ -79,6 +84,9 @@ export class Bot {
   }
 
   send(obj) { this.ws.send(JSON.stringify(obj)); }
+
+  /** Instant (ms) où ce message est arrivé. */
+  arrivedAt(msg) { return this.arrival.get(msg); }
 
   of(type) { return this.messages.filter((m) => m.t === type); }
 

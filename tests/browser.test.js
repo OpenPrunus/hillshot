@@ -73,8 +73,10 @@ async function open(device, lang = 'fr') {
   await call('Storage.clearDataForOrigin', { origin: new URL(BASE).origin, storageTypes: 'local_storage' });
   await call('Page.navigate', { url: `${BASE}/` });
   await waitFor(() => ev('document.readyState === "complete" && !!window.__hillshot'), 10000, 'page chargée');
-  await ev(`localStorage.setItem('hillshot.lang', ${JSON.stringify(lang)}); location.reload()`);
-  await waitFor(() => ev('document.readyState === "complete" && !!window.__hillshot'), 10000, 'page rechargée');
+  // Marqueur posé sur l'ancienne page : sans lui, l'attente est satisfaite par la page d'avant le rechargement (déjà complète,
+  // déjà munie de window.__hillshot) et le test continue pendant la navigation, quand la nouvelle page n'a pas fini de charger.
+  await ev(`window.__avantRechargement = true; localStorage.setItem('hillshot.lang', ${JSON.stringify(lang)}); location.reload()`);
+  await waitFor(() => ev('!window.__avantRechargement && document.readyState === "complete" && !!window.__hillshot'), 10000, 'page rechargée');
 }
 const click = (sel) => ev(`document.querySelector(${JSON.stringify(sel)}).click()`);
 const KEYS = { ArrowLeft: [37, 'ArrowLeft'], ArrowUp: [38, 'ArrowUp'], ArrowRight: [39, 'ArrowRight'], ArrowDown: [40, 'ArrowDown'], Escape: [27, 'Escape'], ' ': [32, 'Space'] };

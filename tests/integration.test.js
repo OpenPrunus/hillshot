@@ -131,11 +131,13 @@ describe('serveur de jeu', () => {
   test('temps de réglage écoulé : tir d\'office, puis forfait au deuxième tour manqué', async () => {
     const m = await match('Lent', true, fast);
     const side = m.round.turn;
-    const t0 = Date.now();
     const auto = await m.a.next('shot', 8000, true);
     assert.equal(auto.by, side);
     assert.deepEqual([auto.a, auto.p], [45, 200], 'dernier réglage connu (celui par défaut)');
-    assert.ok(Date.now() - t0 >= 1500);
+    // Délai mesuré entre l'arrivée de la manche et celle du tir d'office (2 s de réglage côté serveur). Mesuré depuis la fin de
+    // match() il dépendait de la charge de la machine : sur un runner occupé, le délai serveur était déjà entamé.
+    const waited = m.a.arrivedAt(auto) - m.a.arrivedAt(m.round);
+    assert.ok(waited >= 1500, `tir d'office après ${waited} ms (attendu : au moins 1500)`);
     // l'adversaire joue normalement ; le lent laisse de nouveau filer son tour => forfait
     const turn = await m.a.next('turn', 9000);
     assert.equal(turn.turn, 1 - side);
