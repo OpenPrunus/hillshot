@@ -15,6 +15,7 @@
     "test:browser": "node --test --test-timeout=200000 tests/browser.test.js",
     "lint": "for f in web/js/*.js tests/*.js tests/fixtures/*.js; do node --check $f || exit 1; done",
     "fixtures": "node tests/fixtures/generate.js",
-    "serve": "php -S 0.0.0.0:8080 -t web"
+    "serve": "php -S 0.0.0.0:8080 -t web",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-lines=87 --test-coverage-branches=92 tests/engine.test.js tests/ai.test.js tests/i18n.test.js tests/layout.test.js tests/pwa.test.js"
   }
 }
